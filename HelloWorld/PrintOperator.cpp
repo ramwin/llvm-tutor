@@ -1,6 +1,6 @@
 //=============================================================================
 // FILE:
-//    CountBB.cpp
+//    PrintOperator.cpp
 //
 // DESCRIPTION:
 //    Visits all functions in a module, prints their names and the number of
@@ -10,10 +10,10 @@
 //
 // USAGE:
 //    1. Legacy PM
-//      opt -load libCountBB.dylib -legacy-count-bb -disable-output `\`
+//      opt -load libPrintOperator.dylib -legacy-print-operator -disable-output `\`
 //        <input-llvm-file>
 //    2. New PM
-//      opt -load-pass-plugin=libCountBB.dylib -passes="count-bb" `\`
+//      opt -load-pass-plugin=libPrintOperator.dylib -passes="print-operator" `\`
 //        -disable-output <input-llvm-file>
 //
 //
@@ -27,7 +27,7 @@
 using namespace llvm;
 
 //-----------------------------------------------------------------------------
-// CountBB implementation
+// PrintOperator implementation
 //-----------------------------------------------------------------------------
 // No need to expose the internals of the pass to the outside world - keep
 // everything in an anonymous namespace.
@@ -46,45 +46,45 @@ bool visitor(Function &F) {
     errs() << BB << "\n";
     unsigned int ins_cnt = 0;
     // for (auto &Inst: BB) {
+    //   ins_cnt += 1;
+    //   StringRef Name = Inst.getOpcodeName();
+    //   errs() << "第" << ins_cnt << "条指令: " << Inst << "\n";
+    //   errs() << "    " << Name << "\n";
+    // }
+    ins_cnt = 0;
     for (auto Inst = BB.begin(), IE = BB.end(); Inst != IE; ++Inst) {
       ins_cnt += 1;
-      errs() << "第" << ins_cnt << "个指令是: "
-             << *Inst << "\n";
+      errs() << "第" << ins_cnt << "个指令是: ";
+      errs() << "    " << *Inst << "\n";
+      errs() << Inst->getOpcodeName() << "\n";
+      errs() << ins_cnt << ": ";
       // continue;
-      auto *BinOp = dyn_cast<BinaryOperator>(Inst);
-      if (!BinOp)
+      if (auto *BinOp = dyn_cast<BinaryOperator>(Inst)) {
+        errs() << "BinaryOperator\n";
         continue;
-      errs() << "第" << ins_cnt << "个Instruction是二进制操作\n";
-      errs() << *Inst << "\n";
-      if (BinOp->getOpcode() != Instruction::Add)
-        continue;
-      errs() << "  并且是一个+操作\n";
-      errs() << "    " << *BinOp->getOperand(1) << "\n";
-      Value *LHS = BinOp->getOperand(0);
-      Value *RHS = BinOp->getOperand(1);
-      errs() << "    RHS" << RHS << "\n";  // 仅仅是个值,但是不知道怎么判断是不是0
-      errs() << "    *RHS" << *RHS << "\n";  // 具体的值
-      if (ConstantInt* CI = dyn_cast<ConstantInt>(RHS)) {
-        errs() << "    并且右侧是常数\n";
-        errs() << CI->getValue() << "\n";
-        if (CI->getValue() == 0 ){
-          errs() << "    竟然是0\n";
-          // Inst->eraseFromParent();
-          Changed = true;
-        }
       }
-      // Value *Val0 = Value(BinOp->getType(), 0);
-      // if (*RHS == Val0) {
-      // }
-      // errs() << *RHS->Value << "\n";  // 
-      // Value Zero;
-      // if (*RHS == Zero || *LHS == Zero) {
-      // // if (*BinOp->getOperand(1) == 0) {
-      //   errs() << "竟然加了一个0\n";
-      //   // Instruction *NewValue = BinaryOperator::CreateAdd
-      // }
-      // errs() << BinOp->getOperand(1) << "\n";
-      // errs() << *BinOp << "\n";
+      if (auto *Call = dyn_cast<CallBase>(Inst)) {
+        errs() << "CallBase\n";
+        continue;
+      }
+      if (auto *Store = dyn_cast<StoreInst>(Inst)) {
+        errs() << "Store\n";
+        continue;
+      }
+      if (auto *Ret = dyn_cast<ReturnInst>(Inst)) {
+        errs() << "Return\n";
+        continue;
+      }
+      if (auto *RMW = dyn_cast<AtomicRMWInst>(Inst)) {
+        errs() << "AtomicRMWInst\n";
+        continue;
+      }
+      if (auto *Unary = dyn_cast<UnaryInstruction>(Inst)) {
+        errs() << "UnaryInstruction\n";
+        continue;
+      }
+      errs() << "???\n";
+      continue;
     }
   }
   errs() << F.getName() << "有" << bb_cnt << "个BasicBlock\n";
@@ -92,7 +92,7 @@ bool visitor(Function &F) {
 }
 
 // New PM implementation
-struct CountBB : PassInfoMixin<CountBB> {
+struct PrintOperator : PassInfoMixin<PrintOperator> {
   // Main entry point, takes IR unit to run the pass on (&F) and the
   // corresponding pass manager (to be queried if need be)
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
@@ -107,14 +107,14 @@ struct CountBB : PassInfoMixin<CountBB> {
 //-----------------------------------------------------------------------------
 // New PM Registration
 //-----------------------------------------------------------------------------
-llvm::PassPluginLibraryInfo getCountBBPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "CountBB", LLVM_VERSION_STRING,
+llvm::PassPluginLibraryInfo getPrintOperatorPluginInfo() {
+  return {LLVM_PLUGIN_API_VERSION, "PrintOperator", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "count-bb") {
-                    FPM.addPass(CountBB());
+                  if (Name == "print-operator") {
+                    FPM.addPass(PrintOperator());
                     return true;
                   }
                   return false;
@@ -123,9 +123,9 @@ llvm::PassPluginLibraryInfo getCountBBPluginInfo() {
 }
 
 // This is the core interface for pass plugins. It guarantees that 'opt' will
-// be able to recognize CountBB when added to the pass pipeline on the
-// command line, i.e. via '-passes=count-bb'
+// be able to recognize PrintOperator when added to the pass pipeline on the
+// command line, i.e. via '-passes=print-operator'
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
 llvmGetPassPluginInfo() {
-  return getCountBBPluginInfo();
+  return getPrintOperatorPluginInfo();
 }
