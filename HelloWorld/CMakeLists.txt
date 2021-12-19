@@ -33,6 +33,7 @@ endif()
 # 3. ADD THE TARGET
 #===============================================================================
 add_library(HelloWorld SHARED HelloWorld.cpp)
+add_library(CountBB SHARED CountBB.cpp)
 
 # Allow undefined symbols in shared objects on Darwin (this is the default
 # behaviour on Linux)

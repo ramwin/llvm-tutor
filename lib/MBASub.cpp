@@ -62,9 +62,11 @@ bool MBASub::runOnBasicBlock(BasicBlock &BB) {
 
     // Create an instruction representing (a + ~b) + 1
     Instruction *NewValue = BinaryOperator::CreateAdd(
-        Builder.CreateAdd(BinOp->getOperand(0),
-                          Builder.CreateNot(BinOp->getOperand(1))),
-        ConstantInt::get(BinOp->getType(), 1));
+        Builder.CreateAdd(
+          BinOp->getOperand(0),
+          Builder.CreateNot(BinOp->getOperand(1))),
+        ConstantInt::get(BinOp->getType(), 1)
+    );
 
     // The following is visible only if you pass -debug on the command line
     // *and* you have an assert build.
