@@ -7,12 +7,12 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v1
       - name: Download Ninja
         run: |
-          git clone git://github.com/ninja-build/ninja.git
+          git clone https://github.com/ninja-build/ninja.git
           pushd ninja
           ./configure.py --bootstrap
           # chmod +x ninja
@@ -23,7 +23,7 @@ jobs:
           echo "${GITHUB_WORKSPACE}/ninja" >> $GITHUB_PATH
       - name: Clone llvm-project
         run: |
-          git clone --depth 10 --single-branch --branch release/13.x https://github.com/llvm/llvm-project
+          git clone --depth 10 --single-branch --branch release/14.x https://github.com/llvm/llvm-project
       - name: Build LLVM
         run: |
           cd llvm-project
